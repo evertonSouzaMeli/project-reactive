@@ -72,8 +72,8 @@ public class MonoTest {
         String name = "Everton Souza";
         var monoString = Mono.just(name).log().map(String::toUpperCase);
 
-        //podemos prepara o subscribe para eventos difentes, como um try-catch-finally
-        /*monoString.log().subscribe(value -> log.info("Value {}", value),
+        /*podemos prepara o subscribe para eventos difentes, como um try-catch-finally
+        monoString.log().subscribe(value -> log.info("Value {}", value),
                                    Throwable::printStackTrace,
                                    () -> log.info("FINISHED\n"),
                                    //podemos adicionar o Subscription e ele vai cancelar o relacionamento Pub-Sub
@@ -82,7 +82,7 @@ public class MonoTest {
         monoString.log().subscribe(value -> log.info("Value {}", value),
                 Throwable::printStackTrace,
                 () -> log.info("FINISHED\n"),
-                //Aqui fazemos o backpressure, ou seja falamos a quantidade de elementos que o Sub vai consumir do Pub
+                //Aqui fazemos o backpressure, ou seja, falamos a quantidade de elementos que o Sub vai consumir do Pub
                 subscription -> subscription.request(5));
 
         StepVerifier.create(monoString).expectNext(name.toUpperCase(Locale.ROOT)).verifyComplete();
@@ -94,7 +94,7 @@ public class MonoTest {
         var monoString = Mono.just(name)
                                            .log()
                                            .map(String::toUpperCase)
-                                           .doOnSubscribe(subscription -> log.info("Subscribed {}"))
+                                           .doOnSubscribe(subscription -> log.info("Subscribed {}", subscription))
                                            .doOnRequest(longNumber -> log.info("Request received, start doing something.."))
                                            .doOnNext(string -> log.info("Value is here. Executing doOnNext({})", string))
                                             //esvazia a lista
