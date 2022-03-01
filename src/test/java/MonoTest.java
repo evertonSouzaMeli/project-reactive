@@ -1,7 +1,10 @@
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
+import org.reactivestreams.Subscription;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+
+import java.util.Locale;
 
 
 /**
@@ -63,6 +66,21 @@ public class MonoTest {
         monoString.log().subscribe(value -> log.info("Value {}", value), error -> log.error("Something bad as happened"));
 
         StepVerifier.create(monoString).expectError(RuntimeException.class).verify();
+    }
+
+    @Test
+    public void monoSubscriberOnComplete(){
+        String name = "Everton Souza";
+        var monoString = Mono.just(name).log().map(String::toUpperCase);
+
+        //podemos prepara o subscribe para eventos difentes, como um try-catch-finally
+        monoString.log().subscribe(value -> log.info("Value {}", value),
+                                   Throwable::printStackTrace,
+                                   () -> log.info("FINISHED\n"),
+                                   //podemos adicionar o Subscription e ele vai cancelar o relacionamento Pub-Sub
+                                   Subscription::cancel);
+
+        StepVerifier.create(monoString).expectNext(name.toUpperCase(Locale.ROOT)).verifyComplete();
     }
 
 }
