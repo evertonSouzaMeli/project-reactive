@@ -109,4 +109,47 @@ public class MonoTest {
                 () -> log.info("FINISHED\n"));
     }
 
+    @Test
+    public void monoDoOnErrors(){
+        var error = Mono.error(new IllegalArgumentException("Illegal Argument Exception"))
+                  .doOnError(e -> log.error("Error message: {}", e.getMessage()))
+                //Não é executado, pois o doOnError para a execução
+                .doOnNext(s -> log.info("Executing this doOnNext"))
+                //Aqui continuamos o fluxo de dados apesar do erro
+                  .log();
+
+        StepVerifier.create(error).expectError(IllegalArgumentException.class).verify();
+    }
+
+    @Test
+    public void monoDoOnErrorsResume(){
+        String name = "Everton Souza";
+        var error = Mono.error(new IllegalArgumentException("Illegal Argument Exception"))
+                .onErrorResume( s -> {
+                    log.info("Inside On Error Resume");
+                    return Mono.just(name);
+                })
+                //o doOnError não será executado porque o onErrorResume já trata a situação com return
+                .doOnError(ex -> log.info("Error message: {}", ex.getMessage()))
+                .log();
+
+        StepVerifier.create(error).expectNext(name).verifyComplete();
+    }
+
+    @Test
+    public void monoDoOnErrorsReturn(){
+        String name = "Everton Souza";
+        var error = Mono.error(new IllegalArgumentException("Illegal Argument Exception"))
+                //Retorna valor simples, funciona como o Resume
+                .onErrorReturn("EMPTY")
+                .onErrorResume( s -> {
+                    log.info("Inside On Error Resume");
+                    return Mono.just(name);
+                })
+                //o doOnError não será executado porque o onErrorResume já trata a situação com o return
+                .doOnError(ex -> log.info("Error message: {}", ex.getMessage()))
+                .log();
+
+        StepVerifier.create(error).expectNext(name).verifyComplete();
+    }
 }
