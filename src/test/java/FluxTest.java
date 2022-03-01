@@ -180,4 +180,35 @@ public class FluxTest {
         return Flux.interval(Duration.ofDays(1))
                 .log();
     }
+
+    @Test
+    public void connectableFlux() throws InterruptedException {
+        var connectableFlux = Flux.range(1,10)
+                                                         .delayElements(Duration.ofMillis(100))
+                                                         .publish();
+
+        connectableFlux.connect();
+
+        /*log.info("Thread sleeping for 300ms");
+
+        Thread.sleep(200);
+
+        connectableFlux.subscribe(i -> log.info("Sub1 numer {}", i));
+
+        log.info("Thread sleeping for 200ms");
+
+        Thread.sleep(200);
+
+        connectableFlux.subscribe(i -> log.info("Sub2 numer {}", i));*/
+
+        StepVerifier.create(connectableFlux)
+                .then(connectableFlux::connect)
+                //pequena logica que faz perder os primeros 5 elementos
+                .thenConsumeWhile(i -> i <= 5)
+                .expectNext(6,7,8,9,10)
+                .expectComplete()
+                .verify();
+
+    }
+
 }
