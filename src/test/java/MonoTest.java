@@ -187,6 +187,50 @@ public class MonoTest {
         Assertions.assertTrue(atomicLong.get() > 0L);
     }
 
+    @Test
+    public void concatOperator(){
+        var flux1 = Flux.just("a","b");
+        var flux2 = Flux.just("c","d");
+
+        var concatFlux = Flux.concat(flux1, flux2).log();
+
+        StepVerifier.create(concatFlux)
+                    .expectSubscription()
+                    .expectNext("a","b","c","d")
+                    .expectComplete()
+                    .verify();
+    }
+
+    @Test
+    public void concatWithOperator(){
+        var flux1 = Flux.just("a","b");
+        var flux2 = Flux.just("c","d");
+
+        //Serve para mesclar fluxos
+        var concatFlux = flux1.concatWith(flux2).log();
+
+        StepVerifier.create(concatFlux)
+                .expectSubscription()
+                .expectNext("a","b","c","d")
+                .expectComplete()
+                .verify();
+    }
+
+    @Test
+    public void combineLatestOperator(){
+        var flux1 = Flux.just("a","b");
+        var flux2 = Flux.just("c","d");
+
+        //CombineLastest pega o último emitido do primeiro flux, com o último valor emitido do segundo flux
+        var combineLatest = Flux.combineLatest(flux1, flux2, (s1, s2) -> s1.toUpperCase().concat(s2.toUpperCase())).log();
+
+        StepVerifier.create(combineLatest)
+                .expectSubscription()
+                .expectNext("BC","BD")
+                .expectComplete()
+                .verify();
+    }
+
     private Flux<Object> emptyFlux(){
         return Flux.empty();
     }
