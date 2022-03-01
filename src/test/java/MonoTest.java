@@ -29,16 +29,40 @@ public class MonoTest {
     public void monoSubscriber(){
         String name = "Everton Souza";
         var monoString = Mono.just(name);
-
         //mono.subscribe, serve para obter mais detalhes do Mono
         monoString.log().subscribe();
+
         log.info("\n -------STEP VERIFIER --------");
+
         /**
-         * StepVerifier verifica os processos, parece o assertEquals
+         * StepVerifier verifica equidade dos processos, parece o assertEquals
          * termina a verificação com a função "verifyComplete()"
          */
         StepVerifier.create(monoString.log()).expectNext("Everton Souza").verifyComplete();
         log.info("Mono {}", monoString);
+    }
+
+    @Test
+    public void monoSubscriberConsumer(){
+        String name = "Everton Souza";
+        var monoString = Mono.just(name);
+
+        //podemos executar uma ação no momento da subinscrição com o Consumer<T>
+        monoString.log().subscribe(value -> log.info("Value {}", value));
+    }
+
+    @Test
+    public void monoSubscriberError(){
+        String name = "Everton Souza";
+        var monoString = Mono.just(name)
+                                           .map(value -> {
+                                               throw new RuntimeException("Testing mono with erro");
+                                           });
+
+        //podemos executar uma ação no momento da subinscrição com o Consumer<T>
+        monoString.log().subscribe(value -> log.info("Value {}", value), error -> log.error("Something bad as happened"));
+
+        StepVerifier.create(monoString).expectError(RuntimeException.class).verify();
     }
 
 }
