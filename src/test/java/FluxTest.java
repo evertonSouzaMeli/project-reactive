@@ -226,5 +226,4 @@ public class FluxTest {
                 .expectComplete()
                 .verify();
     }
-
 }
