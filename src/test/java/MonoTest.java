@@ -5,6 +5,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+import java.time.Duration;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -189,6 +190,7 @@ public class MonoTest {
 
     @Test
     public void concatOperator(){
+        //Concat é um Lazy Operator ou seja ele vai esperar que o primeiro publisher termine para começar o subsequente
         var flux1 = Flux.just("a","b");
         var flux2 = Flux.just("c","d");
 
@@ -227,6 +229,43 @@ public class MonoTest {
         StepVerifier.create(combineLatest)
                 .expectSubscription()
                 .expectNext("BC","BD")
+                .expectComplete()
+                .verify();
+    }
+
+    //IMPORTANTE PARA SABER TRABALHAR COM FLAT MAP
+    @Test
+    public void mergeOperator() throws Exception{
+        var flux1 = Flux.just("a","b").delayElements(Duration.ofMillis(200));
+        var flux2 = Flux.just("c","d");
+        var mergeFlux = Flux.merge(flux1, flux2)
+                                        .delayElements(Duration.ofMillis(200))
+                                        .log();
+
+        //mergeFlux.subscribe(log::info);
+
+        //Thread.sleep(1000);
+
+        StepVerifier.create(mergeFlux)
+                .expectSubscription()
+                .expectNext("c","d","a","b")
+                .expectComplete()
+                .verify();
+    }
+
+    @Test
+    public void mergeWithOperator() throws Exception{
+        var flux1 = Flux.just("a","b").delayElements(Duration.ofMillis(200));
+        var flux2 = Flux.just("c","d");
+
+        //MergeWith é a mesma coisa, contudo podemos chamar diretamente do flux, ele só aceita 1 flux como parametro
+        var mergeFlux = flux1.mergeWith(flux2)
+                                         .delayElements(Duration.ofMillis(200))
+                                         .log();
+
+        StepVerifier.create(mergeFlux)
+                .expectSubscription()
+                .expectNext("c","d","a","b")
                 .expectComplete()
                 .verify();
     }
