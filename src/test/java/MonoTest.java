@@ -270,6 +270,43 @@ public class MonoTest {
                 .verify();
     }
 
+    @Test
+    public void mergeSequentialOperator() throws Exception{
+        var flux1 = Flux.just("a","b").delayElements(Duration.ofMillis(200));
+        var flux2 = Flux.just("c","d");
+
+        var mergeFlux = Flux.mergeSequential(flux1,flux2,flux1)
+                .delayElements(Duration.ofMillis(200))
+                .log();
+
+        StepVerifier.create(mergeFlux)
+                .expectSubscription()
+                .expectNext("a","b","c","d","a","b")
+                .expectComplete()
+                .verify();
+    }
+
+    @Test
+    public void concatOperatorError() throws Exception{
+        var flux1 = Flux.just("a","b")
+                .map(s -> {
+                    if(s.equals("b"))
+                        throw new IllegalArgumentException();
+                    return s;
+                });
+
+        var flux2 = Flux.just("c","d");
+
+        //concatDelayError é bom para adiar erro
+        var concatFlux = Flux.concatDelayError(flux1,flux2).log();
+
+        StepVerifier.create(concatFlux)
+                .expectSubscription()
+                .expectNext("a","b","c","d")
+                .expectError()
+                .verify();
+    }
+
     private Flux<Object> emptyFlux(){
         return Flux.empty();
     }
