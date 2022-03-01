@@ -137,6 +137,17 @@ public class FluxTest {
     }
 
     @Test
+    public void fluxSubscriberPrettyBackpressure(){
+        var fluxInteger = Flux.range(1, 10).log().limitRate(3);
+
+        fluxInteger.log().subscribe(number -> log.info("Number: {}", number));
+
+        log.info("\n\n ------------------------- \n");
+
+        StepVerifier.create(fluxInteger).expectNext(1,2,3,4,5,6,7,8,9,10).verifyComplete();
+    }
+
+    @Test
     public void fluxSubscriberIntervalOne() throws InterruptedException {
         //Algo importante de salientar é que uma caracteristica do Reactor é ter uma
         // Thread Secundaria onde haverá tudo o que pode bloquear a Thread Principal
