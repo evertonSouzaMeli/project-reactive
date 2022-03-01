@@ -53,4 +53,85 @@ public class OperatorsTest {
     }*/
     }
 
+    @Test
+    public void multipleSubscribeOnSimple() {
+        var flux = Flux.range(1, 4)
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(i -> {
+                    log.info("Map 1 - Number {} on Thread {}", i, Thread.currentThread().getName());
+                    return i;
+                })
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(i -> {
+                    log.info("Map 2 - Number {} on Thread {}", i, Thread.currentThread().getName());
+                    return i;
+                });
+
+        StepVerifier.create(flux)
+                .expectSubscription()
+                .expectNext(1,2,3,4)
+                .verifyComplete();
+    }
+
+    @Test
+    public void multiplePublishOnSimple() {
+        var flux = Flux.range(1, 4)
+                .publishOn(Schedulers.single())
+                .map(i -> {
+                    log.info("Map 1 - Number {} on Thread {}", i, Thread.currentThread().getName());
+                    return i;
+                })
+                .publishOn(Schedulers.boundedElastic())
+                .map(i -> {
+                    log.info("Map 2 - Number {} on Thread {}", i, Thread.currentThread().getName());
+                    return i;
+                });
+
+        StepVerifier.create(flux)
+                .expectSubscription()
+                .expectNext(1,2,3,4)
+                .verifyComplete();
+    }
+
+    @Test
+    public void subscribeAndPublishOnSimple() {
+        var flux = Flux.range(1, 4)
+                //publishOn tem preferencia sobre o subscribeOn
+                .publishOn(Schedulers.single())
+                .map(i -> {
+                    log.info("Map 1 - Number {} on Thread {}", i, Thread.currentThread().getName());
+                    return i;
+                })
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(i -> {
+                    log.info("Map 2 - Number {} on Thread {}", i, Thread.currentThread().getName());
+                    return i;
+                });
+
+        StepVerifier.create(flux)
+                .expectSubscription()
+                .expectNext(1,2,3,4)
+                .verifyComplete();
+    }
+
+    @Test
+    public void publishAndSubscribeOnSimple() {
+        var flux = Flux.range(1, 4)
+                //publishOn tem preferencia sobre o subscribeOn
+                .subscribeOn(Schedulers.single())
+                .map(i -> {
+                    log.info("Map 1 - Number {} on Thread {}", i, Thread.currentThread().getName());
+                    return i;
+                })
+                .publishOn(Schedulers.boundedElastic())
+                .map(i -> {
+                    log.info("Map 2 - Number {} on Thread {}", i, Thread.currentThread().getName());
+                    return i;
+                });
+
+        StepVerifier.create(flux)
+                .expectSubscription()
+                .expectNext(1,2,3,4)
+                .verifyComplete();
+    }
 }
