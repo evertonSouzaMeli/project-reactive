@@ -11,19 +11,25 @@ public class FluxTest {
 
     @Test
     public void fluxSubscriber(){
-        var fluxStrings = Flux.just("Everton", "Souza", "Silva", "DevDojo","Academy").log();
-        StepVerifier.create(fluxStrings).expectNext("Everton", "Souza", "Silva", "DevDojo", "Academy").verifyComplete();
+        var fluxString = Flux.just("Everton", "Souza", "DevDojo","Academy");
+
+        StepVerifier.create(fluxString)
+                //.expectNext("Everton", "Souza", "DevDojo","Academy")
+                .expectNext("Everton")
+                .expectNext("Souza")
+                .expectNext("DevDojo")
+                .expectNext("Academy")
+                .verifyComplete();
     }
 
     @Test
     public void fluxSubscriberNumbers(){
-        var fluxInteger = Flux.range(1, 5);
-        List<Integer> list = fluxInteger.collectList().block();
+        var flux = Flux.range(1,5);
+        flux.log().subscribe(i -> log.info("Number: {}", i));
 
-        fluxInteger.log().subscribe(number -> log.info("Number: {}", number));
-
-        log.info("\n\n ------------------------- \n");
-
-        StepVerifier.create(fluxInteger).expectNext(1,2,3,4,5).verifyComplete();
+        log.info("---------------------------------------");
+        StepVerifier.create(flux)
+                .expectNext(1,2,3,4,5)
+                .verifyComplete();
     }
 }
