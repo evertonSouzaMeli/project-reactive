@@ -29,7 +29,7 @@ import java.util.Locale;
 public class MonoTest {
 
     @Test
-    public void monoSubscriber(){
+    public void monoSubscriber() {
         String name = "Everton Souza";
         var monoString = Mono.just(name);
         //mono.subscribe, serve para obter mais detalhes do Mono
@@ -46,7 +46,7 @@ public class MonoTest {
     }
 
     @Test
-    public void monoSubscriberConsumer(){
+    public void monoSubscriberConsumer() {
         String name = "Everton Souza";
         var monoString = Mono.just(name);
 
@@ -55,17 +55,19 @@ public class MonoTest {
     }
 
     @Test
-    public void monoSubscriberError(){
+    public void monoSubscriberError() {
         String name = "Everton Souza";
-        var monoString = Mono.just(name)
-                                           .map(value -> {
-                                               throw new RuntimeException("Testing mono with erro");
-                                           });
+        Mono<String> monoString = Mono.just(name)
+                .map(string -> {
+                    throw new RuntimeException("Testing mono with error");
+                });
 
-        //podemos executar uma ação no momento da subinscrição com o Consumer<T>
-        monoString.log().subscribe(value -> log.info("Value {}", value), error -> log.error("Something bad as happened"));
+        monoString.subscribe(element -> log.info("Value {}", element), x -> log.error("Something Bad happening"));
+        monoString.subscribe(element -> log.info("Value{}", element), Throwable::printStackTrace);
 
-        StepVerifier.create(monoString).expectError(RuntimeException.class).verify();
+        StepVerifier.create(monoString)
+                .expectError(RuntimeException.class)
+                .verify();
     }
 
     @Test
@@ -82,5 +84,4 @@ public class MonoTest {
 
         StepVerifier.create(monoString).expectNext(name.toUpperCase(Locale.ROOT)).verifyComplete();
     }
-
 }
