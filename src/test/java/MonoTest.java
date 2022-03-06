@@ -24,7 +24,8 @@ import java.util.Locale;
  * 1. Publisher sends all the objects requested
  * 2. Publisher envia tudo o que é possivel  (onComplete)
  * 3. There is an error (onError) -> subscriber and subscription will be canceled
- * * */
+ * *
+ */
 @Slf4j
 public class MonoTest {
 
@@ -71,17 +72,28 @@ public class MonoTest {
     }
 
     @Test
-    public void monoSubscriberOnComplete(){
+    public void monoSubscriberOnComplete() {
         String name = "Everton Souza";
-        var monoString = Mono.just(name).log().map(String::toUpperCase);
+        var monoString = Mono.just(name).map(String::toUpperCase);
 
-        //podemos prepara o subscribe para eventos difentes, como um try-catch-finally
-        monoString.log().subscribe(value -> log.info("Value {}", value),
-                                   Throwable::printStackTrace,
-                                   () -> log.info("FINISHED\n"),
-                                   //podemos adicionar o Subscription e ele vai cancelar o relacionamento Pub-Sub
-                                   Subscription::cancel);
+        monoString.log().subscribe(element -> log.info("Value {}", element), null, () -> log.info("FINISHED!!"));
 
-        StepVerifier.create(monoString).expectNext(name.toUpperCase(Locale.ROOT)).verifyComplete();
+        StepVerifier.create(monoString).expectNext(name.toUpperCase()).verifyComplete();
+    }
+
+    @Test
+    public void monoSubscriberConsumerSubscription() {
+        String name = "Everton Souza";
+        var monoString = Mono.just(name)
+                .map(String::toUpperCase);
+
+        monoString.log().subscribe(element -> log.info("Value {}", element)
+                , Throwable::printStackTrace
+                , () -> log.info("FINISHED !!!")
+                , element -> element.cancel());
+
+        StepVerifier.create(monoString)
+                .expectNext(name.toUpperCase())
+                .verifyComplete();
     }
 }
