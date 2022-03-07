@@ -23,12 +23,13 @@ import java.util.Locale;
  * 1. Publisher sends all the objects requested
  * 2. Publisher envia tudo o que é possivel  (onComplete)
  * 3. There is an error (onError) -> subscriber and subscription will be canceled
- * * */
+ * *
+ */
 @Slf4j
 public class MonoTest {
 
     @Test
-    public void monoSubscriber(){
+    public void monoSubscriber() {
         String name = "Everton Souza";
         var monoString = Mono.just(name);
         //mono.subscribe, serve para obter mais detalhes do Mono
@@ -45,7 +46,7 @@ public class MonoTest {
     }
 
     @Test
-    public void monoSubscriberConsumer(){
+    public void monoSubscriberConsumer() {
         String name = "Everton Souza";
         var monoString = Mono.just(name);
 
@@ -54,101 +55,76 @@ public class MonoTest {
     }
 
     @Test
-    public void monoSubscriberError(){
+    public void monoSubscriberError() {
+        String name = "Everton Souza";
+        Mono<String> monoString = Mono.just(name)
+                .map(string -> {
+                    throw new RuntimeException("Testing mono with error");
+                });
+
+        monoString.subscribe(element -> log.info("Value {}", element), x -> log.error("Something Bad happening"));
+        monoString.subscribe(element -> log.info("Value{}", element), Throwable::printStackTrace);
+
+        StepVerifier.create(monoString)
+                .expectError(RuntimeException.class)
+                .verify();
+    }
+
+    @Test
+    public void monoSubscriberOnComplete() {
         String name = "Everton Souza";
         var monoString = Mono.just(name)
-                                           .map(value -> {
-                                               throw new RuntimeException("Testing mono with erro");
-                                           });
+                .map(String::toUpperCase);
 
-        //podemos executar uma ação no momento da subinscrição com o Consumer<T>
-        monoString.log().subscribe(value -> log.info("Value {}", value), error -> log.error("Something bad as happened"));
+        monoString.log().subscribe(
+                element -> log.info("Value {}", element)
+                , Throwable::printStackTrace
+                , () -> log.info("FINISHED !!!")
+                //, element -> element.cancel());
+                , element -> element.request(5));
 
-        StepVerifier.create(monoString).expectError(RuntimeException.class).verify();
+        StepVerifier.create(monoString)
+                .expectNext(name.toUpperCase())
+                .verifyComplete();
     }
 
     @Test
-    public void monoSubscriberOnComplete(){
-        String name = "Everton Souza";
-        var monoString = Mono.just(name).log().map(String::toUpperCase);
-
-        //podemos prepara o subscribe para eventos difentes, como um try-catch-finally
-        /*monoString.log().subscribe(value -> log.info("Value {}", value),
-                                   Throwable::printStackTrace,
-                                   () -> log.info("FINISHED\n"),
-                                   //podemos adicionar o Subscription e ele vai cancelar o relacionamento Pub-Sub
-                                   Subscription::cancel);*/
-
-        monoString.log().subscribe(value -> log.info("Value {}", value),
-                Throwable::printStackTrace,
-                () -> log.info("FINISHED\n"),
-                //Aqui fazemos o backpressure, ou seja falamos a quantidade de elementos que o Sub vai consumir do Pub
-                subscription -> subscription.request(5));
-
-        StepVerifier.create(monoString).expectNext(name.toUpperCase(Locale.ROOT)).verifyComplete();
-    }
-
-    @Test
-    public void monoDoOnMethods(){
+    public void monoDoOnMethods() {
         String name = "Everton Souza";
         var monoString = Mono.just(name)
-                                           .log()
-                                           .map(String::toUpperCase)
-                                           .doOnSubscribe(subscription -> log.info("Subscribed {}"))
-                                           .doOnRequest(longNumber -> log.info("Request received, start doing something.."))
-                                           .doOnNext(string -> log.info("Value is here. Executing doOnNext({})", string))
-                                            //esvazia a lista
-                                           .flatMap(x -> Mono.empty())
-                                            //não será executada por a lista está vazia
-                                           .doOnNext(string -> log.info("Value is here. Executing doOnNext({})", string))
-                                           .doOnSuccess(s -> log.info("doOnSucess executed {}", s));
+                .map(String::toUpperCase)
+                //Acionado quando é o subscribe() é acionado
+                .doOnSubscribe(subscription -> log.info("Subscribed"))
+                //Acionado sempre que houver elementos no fluxo
+                .doOnNext(s -> log.info("Value is here. Executing doOnNext {}", s))
+                //Estamos limpando o Mono
+                .flatMap(s -> Mono.empty())
+                //Linha não será executada porque o Mono está vazio
+                .doOnNext(s -> log.info("Value is here. Executing doOnNext {}", s))
+                //Acionado sempre que é feita uma requisição (subscription -> request(number))
+                .doOnRequest(value -> log.info("Request Received, start to do something"))
+                //Acionado sempre quando o fluxo é executado com sucesso
+                .doOnSuccess(s -> log.info("doOnSucess executed {}", s));
 
-        monoString.log().subscribe(value -> log.info("Value {}", value),
-                Throwable::printStackTrace,
-                () -> log.info("FINISHED\n"));
+
+        monoString.log().subscribe(s -> log.info("Value {}", s)
+                , Throwable::printStackTrace
+                , () -> log.info("FINISHED")
+                , subscription -> subscription.request(5));
     }
 
     @Test
-    public void monoDoOnErrors(){
-        var error = Mono.error(new IllegalArgumentException("Illegal Argument Exception"))
-                  .doOnError(e -> log.error("Error message: {}", e.getMessage()))
-                //Não é executado, pois o doOnError para a execução
-                .doOnNext(s -> log.info("Executing this doOnNext"))
-                //Aqui continuamos o fluxo de dados apesar do erro
-                  .log();
-
-        StepVerifier.create(error).expectError(IllegalArgumentException.class).verify();
-    }
-
-    @Test
-    public void monoDoOnErrorsResume(){
+    public void monoDoOnErrors() {
         String name = "Everton Souza";
-        var error = Mono.error(new IllegalArgumentException("Illegal Argument Exception"))
-                .onErrorResume( s -> {
-                    log.info("Inside On Error Resume");
-                    return Mono.just(name);
-                })
-                //o doOnError não será executado porque o onErrorResume já trata a situação com return
-                .doOnError(ex -> log.info("Error message: {}", ex.getMessage()))
-                .log();
+        var monoError = Mono.error(new RuntimeException("Something bad has happened"))
+                .onErrorReturn("SOMETHING")
+                //Bom para usar no FallBack
+                .onErrorResume(throwable -> { log.info("Inside of onErrorResume()"); return Mono.just(name); })
+                //Não será executada após o onErrorResume()
+                .doOnError(exception -> log.info("Error Message: {}", exception.getMessage()));
 
-        StepVerifier.create(error).expectNext(name).verifyComplete();
-    }
-
-    @Test
-    public void monoDoOnErrorsReturn(){
-        String name = "Everton Souza";
-        var error = Mono.error(new IllegalArgumentException("Illegal Argument Exception"))
-                //Retorna valor simples, funciona como o Resume
-                .onErrorReturn("EMPTY")
-                .onErrorResume( s -> {
-                    log.info("Inside On Error Resume");
-                    return Mono.just(name);
-                })
-                //o doOnError não será executado porque o onErrorResume já trata a situação com o return
-                .doOnError(ex -> log.info("Error message: {}", ex.getMessage()))
-                .log();
-
-        StepVerifier.create(error).expectNext(name).verifyComplete();
+        StepVerifier.create(monoError)
+                .expectNext(name)
+                .verifyComplete();
     }
 }
