@@ -142,14 +142,14 @@ public class FluxTest {
     }
 
     @Test
-    public void fluxSubscriberPrettyBackpressure(){
-        var fluxInteger = Flux.range(1, 10).log().limitRate(3);
+    public void fluxSubscriberPrettyBackpressure() {
+        var flux = Flux.range(1, 5).log().limitRate(2);
+        flux.log().subscribe(i -> log.info("Number: {}", i));
 
-        fluxInteger.log().subscribe(number -> log.info("Number: {}", number));
-
-        log.info("\n\n ------------------------- \n");
-
-        StepVerifier.create(fluxInteger).expectNext(1,2,3,4,5,6,7,8,9,10).verifyComplete();
+        log.info("---------------------------------------");
+        StepVerifier.create(flux)
+                .expectNext(1, 2, 3, 4, 5)
+                .verifyComplete();
     }
 
     @Test
