@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import reactor.core.publisher.BaseSubscriber;
+import reactor.core.publisher.ConnectableFlux;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
 
@@ -110,8 +111,8 @@ public class FluxTest {
     }
 
     @Test
-    public void fluxSubscriberNumbersErrorNotSosUglyBackpressure(){
-        var listOfIntegers = List.of(1,2,3,4,5,6,7,8,9,10);
+    public void fluxSubscriberNumbersErrorNotSosUglyBackpressure() {
+        var listOfIntegers = List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
         var flux = Flux.fromIterable(listOfIntegers);
 
         flux.log().subscribe(new BaseSubscriber<Integer>() {
@@ -127,7 +128,7 @@ public class FluxTest {
             @Override
             protected void hookOnNext(Integer value) {
                 count++;
-                if(count >= requestCount){
+                if (count >= requestCount) {
                     count = 0;
                     request(requestCount);
                 }
@@ -137,7 +138,7 @@ public class FluxTest {
         log.info("\n\n ------------------------- \n");
 
         StepVerifier.create(flux)
-                .expectNext(1,2,3,4,5,6,7,8,9,10)
+                .expectNext(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
                 .verifyComplete();
     }
 
@@ -174,38 +175,33 @@ public class FluxTest {
                 .verify();
     }
 
-    private Flux<Long> createInterval(){
+    private Flux<Long> createInterval() {
         return Flux.interval(Duration.ofDays(1)).log();
     }
 
     @Test
     public void connectableFlux() throws InterruptedException {
-        var connectableFlux = Flux.range(1,10)
-                                                         .delayElements(Duration.ofMillis(100))
-                                                         .publish();
+        var connectableFlux = Flux.range(1, 10)
+                .delayElements(Duration.ofMillis(100))
+                .publish();
 
-        connectableFlux.connect();
+        /*connectableFlux.connect();
 
-        /*log.info("Thread sleeping for 300ms");
+        log.info("Thread sleeping 300ms");
+        Thread.sleep(300);
 
+        connectableFlux.subscribe(integer -> log.info("Sub1 number{}", integer));
+
+        log.info("Thread sleeping 200ms");
         Thread.sleep(200);
 
-        connectableFlux.subscribe(i -> log.info("Sub1 numer {}", i));
-
-        log.info("Thread sleeping for 200ms");
-
-        Thread.sleep(200);
-
-        connectableFlux.subscribe(i -> log.info("Sub2 numer {}", i));*/
+        connectableFlux.subscribe(integer -> log.info("Sub2 number{}", integer));*/
 
         StepVerifier.create(connectableFlux)
-                .then(connectableFlux::connect)
-                //pequena logica que faz perder os primeros 5 elementos
-                .thenConsumeWhile(i -> i <= 5)
+                .then(() -> connectableFlux.connect())
+                .thenConsumeWhile(integer -> integer <= 5)
                 .expectNext(6,7,8,9,10)
                 .expectComplete()
                 .verify();
-
     }
-
 }
