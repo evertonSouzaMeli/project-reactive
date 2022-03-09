@@ -4,12 +4,10 @@ import org.junit.jupiter.api.Test;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import reactor.core.publisher.BaseSubscriber;
-import reactor.core.publisher.ConnectableFlux;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
 
 import java.time.Duration;
-import java.util.Date;
 import java.util.List;
 
 @Slf4j
@@ -25,7 +23,8 @@ public class FluxTest {
                 .expectNext("Souza")
                 .expectNext("DevDojo")
                 .expectNext("Academy")
-                .verifyComplete();
+                .expectComplete()
+                .verify();
     }
 
     @Test
@@ -207,15 +206,14 @@ public class FluxTest {
 
     @Test
     public void connectableFluxAutoConnect() throws InterruptedException {
-        var fluxAutoConnect = Flux.range(1,5)
+        var autoConnectableFlux = Flux.range(1,5)
+                .log()
                 .delayElements(Duration.ofMillis(100))
                 .publish()
                 .autoConnect(2);
 
-        StepVerifier
-                .create(fluxAutoConnect)
-                //Aqui criamos dois subscribers
-                .then(fluxAutoConnect::subscribe)
+        StepVerifier.create(autoConnectableFlux)
+                .then(() -> autoConnectableFlux.subscribe())
                 .expectNext(1,2,3,4,5)
                 .expectComplete()
                 .verify();
