@@ -14,76 +14,82 @@ import java.util.List;
 public class FluxTest {
 
     @Test
-    public void fluxSubscriber(){
-        var fluxStrings = Flux.just("Everton", "Souza", "Silva", "DevDojo","Academy").log();
-        StepVerifier.create(fluxStrings).expectNext("Everton", "Souza", "Silva", "DevDojo", "Academy").verifyComplete();
+    public void fluxSubscriber() {
+        var fluxString = Flux.just("Everton", "Souza", "DevDojo", "Academy");
+
+        StepVerifier.create(fluxString)
+                //.expectNext("Everton", "Souza", "DevDojo","Academy")
+                .expectNext("Everton")
+                .expectNext("Souza")
+                .expectNext("DevDojo")
+                .expectNext("Academy")
+                .expectComplete()
+                .verify();
     }
 
     @Test
-    public void fluxSubscriberNumbers(){
-        var fluxInteger = Flux.range(1, 5);
+    public void fluxSubscriberNumbers() {
+        var flux = Flux.range(1, 5);
+        flux.log().subscribe(i -> log.info("Number: {}", i));
 
-        fluxInteger.log().subscribe(number -> log.info("Number: {}", number));
-
-        log.info("\n\n ------------------------- \n");
-
-        StepVerifier.create(fluxInteger).expectNext(1,2,3,4,5).verifyComplete();
+        log.info("---------------------------------------");
+        StepVerifier.create(flux)
+                .expectNext(1, 2, 3, 4, 5)
+                .verifyComplete();
     }
 
     @Test
-    public void fluxSubscriberFromList(){
-        var fluxInteger = Flux.fromIterable(List.of(1,2,3,4,5));
+    public void fluxSubscriberFromList() {
+        var listOfNumbers = List.of(1, 2, 3, 4, 5);
+        var flux = Flux.fromIterable(listOfNumbers).log();
 
-        fluxInteger.log().subscribe(number -> log.info("Number: {}", number));
-
-        log.info("\n\n ------------------------- \n");
-
-        StepVerifier.create(fluxInteger).expectNext(1,2,3,4,5).verifyComplete();
+        log.info("-----------------------------------------");
+        StepVerifier.create(flux)
+                .expectNext(1, 2, 3, 4, 5)
+                .verifyComplete();
     }
 
     @Test
-    public void fluxSubscriberNumbersErrors(){
-        var fluxInteger = Flux.range(1,5)
-                                            .map(number -> {
-                                                if(number == 4)
-                                                    throw new IndexOutOfBoundsException("Index error");
-                                                return number;
-                                            });
+    public void fluxSubscriberNumbersErrors() {
+        var fluxInteger = Flux.range(1, 5)
+                .map(i -> {
+                    if (i == 4)
+                        throw new RuntimeException("ERROR");
+                    return i;
+                });
 
-        fluxInteger.log().subscribe(number -> log.info("Number: {}", number),
-                                              Throwable::printStackTrace,
-                                              () -> log.info("DONE !"),
-                                              subscription -> subscription.request(3));
-
-        log.info("\n\n ------------------------- \n");
+        fluxInteger.subscribe(integer -> log.info("Number: {}", integer)
+                , Throwable::printStackTrace
+                , () -> log.info("DONE"));
 
         StepVerifier.create(fluxInteger)
-                    .expectNext(1,2,3)
-                    .expectError(IndexOutOfBoundsException.class)
-                    .verify();
+                .expectNext(1, 2, 3)
+                .expectError(RuntimeException.class)
+                .verify();
     }
 
     @Test
-    public void fluxSubscriberNumbersErrorsUglyBackpressure(){
-        var fluxInteger = Flux.range(1,10);
+    public void fluxSubscriberNumbersErrorsUglyBackpressure() {
+        var listOfIntegers = List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+        var flux = Flux.fromIterable(listOfIntegers);
 
-        fluxInteger.log().subscribe(new Subscriber<Integer>() {
+        flux.log().subscribe(new Subscriber<Integer>() {
             private int count = 0;
-            private Subscription s;
             private int requestCount = 2;
+            private Subscription subscription;
 
             @Override
             public void onSubscribe(Subscription s) {
-                this.s = s;
-                s.request(2);
+                this.subscription = s;
+                subscription.request(requestCount);
             }
 
             @Override
             public void onNext(Integer integer) {
                 count++;
-                if(count >= requestCount){
+                if (count >= requestCount) {
                     count = 0;
-                    s.request(requestCount);
+                    subscription.request(2);
                 }
             }
 
@@ -98,31 +104,30 @@ public class FluxTest {
             }
         });
 
-        log.info("\n\n ------------------------- \n");
-
-        StepVerifier.create(fluxInteger)
-                .expectNext(1,2,3,4,5,6,7,8,9,10)
+        StepVerifier.create(flux)
+                .expectNext(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
                 .verifyComplete();
     }
 
     @Test
-    public void fluxSubscriberNumbersErrorNotSosUglyBackpressure(){
-        var fluxInteger = Flux.range(1,10);
+    public void fluxSubscriberNumbersErrorNotSosUglyBackpressure() {
+        var listOfIntegers = List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+        var flux = Flux.fromIterable(listOfIntegers);
 
-        fluxInteger.log().subscribe(new BaseSubscriber<>() {
+        flux.log().subscribe(new BaseSubscriber<Integer>() {
             private int count = 0;
-            private Subscription s;
-            private int requestCount = 2;
+            private final int requestCount = 2;
+
 
             @Override
-            protected void hookOnSubscribe(Subscription subscription){
+            protected void hookOnSubscribe(Subscription subscription) {
                 request(requestCount);
             }
 
             @Override
-            protected void hookOnNext(Integer value){
+            protected void hookOnNext(Integer value) {
                 count++;
-                if(count >= requestCount){
+                if (count >= requestCount) {
                     count = 0;
                     request(requestCount);
                 }
@@ -131,97 +136,84 @@ public class FluxTest {
 
         log.info("\n\n ------------------------- \n");
 
-        StepVerifier.create(fluxInteger)
-                .expectNext(1,2,3,4,5,6,7,8,9,10)
+        StepVerifier.create(flux)
+                .expectNext(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
                 .verifyComplete();
     }
 
     @Test
-    public void fluxSubscriberPrettyBackpressure(){
-        var fluxInteger = Flux.range(1, 10).log().limitRate(3);
+    public void fluxSubscriberPrettyBackpressure() {
+        var flux = Flux.range(1, 5).log().limitRate(2);
+        flux.log().subscribe(i -> log.info("Number: {}", i));
 
-        fluxInteger.log().subscribe(number -> log.info("Number: {}", number));
-
-        log.info("\n\n ------------------------- \n");
-
-        StepVerifier.create(fluxInteger).expectNext(1,2,3,4,5,6,7,8,9,10).verifyComplete();
+        log.info("---------------------------------------");
+        StepVerifier.create(flux)
+                .expectNext(1, 2, 3, 4, 5)
+                .verifyComplete();
     }
 
     @Test
     public void fluxSubscriberIntervalOne() throws InterruptedException {
-        //Algo importante de salientar é que uma caracteristica do Reactor é ter uma
-        // Thread Secundaria onde haverá tudo o que pode bloquear a Thread Principal
-        var interval = Flux.interval(Duration.ofMillis(300))
-                                      //Pega um numero deternimado de elementos do Fluxo
-                                       .take(10)
-                                       .log();
+        var flux = Flux.interval(Duration.ofMillis(100)).take(10).log();
 
-        interval.subscribe(i -> log.info("Number {}", i));
+        flux.subscribe(i -> log.info("Number: {}", i));
 
-        //Isso "CONGELA" a Thread principal para que a Secundaria a Ultrapasse e consiga executar a ação
-        Thread.sleep(30000);
+        Thread.sleep(3000);
     }
 
     @Test
-    public void fluxSubscriberIntervalTwo() throws InterruptedException {
-        //Virtual time tem uma restrição, o flux interval tem que ser criado dentro do metodo
+    public void fluxSubscriberIntervalTwo() {
         StepVerifier.withVirtualTime(this::createInterval)
-                    .thenAwait(Duration.ofDays(2))
-                    //Verificar que nada está sendo executado antes do esperado
-                    .expectNoEvent(Duration.ofHours(24))
-                    .expectNext(0L)
-                    .expectNext(1L)
-                    .thenCancel()
-                    .verify();
+                .expectSubscription()
+                .expectNoEvent(Duration.ofDays(1))
+                .thenAwait(Duration.ofDays(1))
+                .expectNext(0L)
+                .thenAwait(Duration.ofDays(1))
+                .expectNext(1L)
+                .thenCancel()
+                .verify();
     }
 
     private Flux<Long> createInterval() {
-        //todos os dias o ofDays() imprimira um resultado
-        return Flux.interval(Duration.ofDays(1))
-                .log();
+        return Flux.interval(Duration.ofDays(1)).log();
     }
 
     @Test
     public void connectableFlux() throws InterruptedException {
-        var connectableFlux = Flux.range(1,10)
-                                                         .delayElements(Duration.ofMillis(100))
-                                                         .publish();
+        var connectableFlux = Flux.range(1, 10)
+                .delayElements(Duration.ofMillis(100))
+                .publish();
 
-        connectableFlux.connect();
+        /*connectableFlux.connect();
 
-        /*log.info("Thread sleeping for 300ms");
+        log.info("Thread sleeping 300ms");
+        Thread.sleep(300);
 
+        connectableFlux.subscribe(integer -> log.info("Sub1 number{}", integer));
+
+        log.info("Thread sleeping 200ms");
         Thread.sleep(200);
 
-        connectableFlux.subscribe(i -> log.info("Sub1 numer {}", i));
-
-        log.info("Thread sleeping for 200ms");
-
-        Thread.sleep(200);
-
-        connectableFlux.subscribe(i -> log.info("Sub2 numer {}", i));*/
+        connectableFlux.subscribe(integer -> log.info("Sub2 number{}", integer));*/
 
         StepVerifier.create(connectableFlux)
-                .then(connectableFlux::connect)
-                //pequena logica que faz perder os primeros 5 elementos
-                .thenConsumeWhile(i -> i <= 5)
+                .then(() -> connectableFlux.connect())
+                .thenConsumeWhile(integer -> integer <= 5)
                 .expectNext(6,7,8,9,10)
                 .expectComplete()
                 .verify();
-
     }
 
     @Test
     public void connectableFluxAutoConnect() throws InterruptedException {
-        var fluxAutoConnect = Flux.range(1,5)
+        var autoConnectableFlux = Flux.range(1,5)
+                .log()
                 .delayElements(Duration.ofMillis(100))
                 .publish()
                 .autoConnect(2);
 
-        StepVerifier
-                .create(fluxAutoConnect)
-                //Aqui criamos dois subscribers
-                .then(fluxAutoConnect::subscribe)
+        StepVerifier.create(autoConnectableFlux)
+                .then(() -> autoConnectableFlux.subscribe())
                 .expectNext(1,2,3,4,5)
                 .expectComplete()
                 .verify();
