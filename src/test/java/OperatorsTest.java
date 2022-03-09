@@ -6,6 +6,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
 
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -144,19 +145,15 @@ public class OperatorsTest {
     @Test
     public void subscribeOnIO() throws Exception {
         //Executa uma Thread em background quando a thread alvo estiver bloqueada
-        var list = Mono.fromCallable( () -> Files.readAllLines(Path.of("text-file")))
-                                                                    .log()
-                                                                    .subscribeOn(Schedulers.boundedElastic());
+        var monoList = Mono.fromCallable(() -> Files.readAllLines(Path.of("text-file")))
+                .log()
+                .subscribeOn(Schedulers.boundedElastic());
 
-        list.subscribe(string -> log.info("{}", string));
-
-        Thread.sleep(2000);
-
-        StepVerifier.create(list)
+        StepVerifier.create(monoList)
                 .expectSubscription()
-                .thenConsumeWhile(x -> {
-                    Assertions.assertFalse(x.isEmpty());
-                    log.info("Size {}", x.size());
+                .thenConsumeWhile(list -> {
+                    Assertions.assertFalse(list.isEmpty());
+                    log.info("Size {}", list.size());
                     return true;
                 }).verifyComplete();
     }
