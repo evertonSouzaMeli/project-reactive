@@ -6,32 +6,34 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
 
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
 public class OperatorsTest {
 
     @Test
     public void subscribeOnSimple(){
-        var flux = Flux.range(1,4)
-                .map(i -> {
-                    log.info("Map 1 - Number {} on Thread {}", i, Thread.currentThread().getName());
-                    return i;
+        var flux = Flux.range(1,5)
+                .log()
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(integer -> {
+                    log.info("Map 1 - Number {} Thread {}",integer, Thread.currentThread());
+                    return integer;
                 })
-                //Schedule single por ser uma Thread simples,
-                // subscribeOn afeta todu o fluxo, independente do antes e depois, serve para alterar a Thread de operação
-                // mudanto da main (thread principal) para outra declarada
                 .subscribeOn(Schedulers.single())
-                .map( i -> {
-                    log.info("Map 2 - Number {} on Thread {}", i, Thread.currentThread().getName());
-                    return i;
+                .map(integer -> {
+                    log.info("Map 2 - Number {} Thread {}",integer, Thread.currentThread());
+                    return integer;
                 });
 
         StepVerifier.create(flux)
                 .expectSubscription()
-                .expectNext(1,2,3,4)
-                .verifyComplete();
+                .expectNext(1,2,3,4,5)
+                .expectComplete()
+                .verify();
     }
 
     @Test
@@ -144,20 +146,55 @@ public class OperatorsTest {
     @Test
     public void subscribeOnIO() throws Exception {
         //Executa uma Thread em background quando a thread alvo estiver bloqueada
-        var list = Mono.fromCallable( () -> Files.readAllLines(Path.of("text-file")))
-                                                                    .log()
-                                                                    .subscribeOn(Schedulers.boundedElastic());
+        var monoList = Mono.fromCallable(() -> Files.readAllLines(Path.of("text-file")))
+                .log()
+                .subscribeOn(Schedulers.boundedElastic());
 
-        list.subscribe(string -> log.info("{}", string));
-
-        Thread.sleep(2000);
-
-        StepVerifier.create(list)
+        StepVerifier.create(monoList)
                 .expectSubscription()
-                .thenConsumeWhile(x -> {
-                    Assertions.assertFalse(x.isEmpty());
-                    log.info("Size {}", x.size());
+                .thenConsumeWhile(list -> {
+                    Assertions.assertFalse(list.isEmpty());
+                    log.info("Size {}", list.size());
                     return true;
                 }).verifyComplete();
+    }
+
+    @Test
+    public void switchIfEmptyOperator(){
+        var flux = emptyFlux()
+                .switchIfEmpty(Flux.just("Not empty anymore"))
+                .log();
+
+
+        StepVerifier.create(flux)
+                .expectSubscription()
+                .expectNext("Not empty anymore")
+                .expectComplete()
+                .verify();
+    }
+
+    @Test
+    public void deferOperator() throws Exception{
+        var just = Mono.just(System.currentTimeMillis());
+        //Defer é bom, toda vez que um subscribe entrar no Mono retorna valor atualizado
+        var defer = Mono.defer(() -> Mono.just(System.currentTimeMillis()));
+
+        //Apesar do uso de Delay, o resultado do tempo será o mesmo
+        // isso ocorre no momento da instancia, ele guarda o valor na memória
+        defer.subscribe(x -> log.info("time {}", x));
+        Thread.sleep(100);
+        defer.subscribe(x -> log.info("time {}", x));
+        Thread.sleep(100);
+        defer.subscribe(x -> log.info("time {}", x));
+        Thread.sleep(100);
+        defer.subscribe(x -> log.info("time {}", x));
+
+        AtomicLong atomicLong = new AtomicLong();
+        defer.subscribe(atomicLong::set);
+        Assertions.assertTrue(atomicLong.get() > 0L);
+    }
+
+    private Flux<Object> emptyFlux(){
+        return Flux.empty();
     }
 }
