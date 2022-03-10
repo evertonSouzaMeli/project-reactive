@@ -6,6 +6,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
 
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -14,24 +15,24 @@ public class OperatorsTest {
 
     @Test
     public void subscribeOnSimple(){
-        var flux = Flux.range(1,4)
-                .map(i -> {
-                    log.info("Map 1 - Number {} on Thread {}", i, Thread.currentThread().getName());
-                    return i;
+        var flux = Flux.range(1,5)
+                .log()
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(integer -> {
+                    log.info("Map 1 - Number {} Thread {}",integer, Thread.currentThread());
+                    return integer;
                 })
-                //Schedule single por ser uma Thread simples,
-                // subscribeOn afeta todu o fluxo, independente do antes e depois, serve para alterar a Thread de operação
-                // mudanto da main (thread principal) para outra declarada
                 .subscribeOn(Schedulers.single())
-                .map( i -> {
-                    log.info("Map 2 - Number {} on Thread {}", i, Thread.currentThread().getName());
-                    return i;
+                .map(integer -> {
+                    log.info("Map 2 - Number {} Thread {}",integer, Thread.currentThread());
+                    return integer;
                 });
 
         StepVerifier.create(flux)
                 .expectSubscription()
-                .expectNext(1,2,3,4)
-                .verifyComplete();
+                .expectNext(1,2,3,4,5)
+                .expectComplete()
+                .verify();
     }
 
     @Test
@@ -144,19 +145,15 @@ public class OperatorsTest {
     @Test
     public void subscribeOnIO() throws Exception {
         //Executa uma Thread em background quando a thread alvo estiver bloqueada
-        var list = Mono.fromCallable( () -> Files.readAllLines(Path.of("text-file")))
-                                                                    .log()
-                                                                    .subscribeOn(Schedulers.boundedElastic());
+        var monoList = Mono.fromCallable(() -> Files.readAllLines(Path.of("text-file")))
+                .log()
+                .subscribeOn(Schedulers.boundedElastic());
 
-        list.subscribe(string -> log.info("{}", string));
-
-        Thread.sleep(2000);
-
-        StepVerifier.create(list)
+        StepVerifier.create(monoList)
                 .expectSubscription()
-                .thenConsumeWhile(x -> {
-                    Assertions.assertFalse(x.isEmpty());
-                    log.info("Size {}", x.size());
+                .thenConsumeWhile(list -> {
+                    Assertions.assertFalse(list.isEmpty());
+                    log.info("Size {}", list.size());
                     return true;
                 }).verifyComplete();
     }
