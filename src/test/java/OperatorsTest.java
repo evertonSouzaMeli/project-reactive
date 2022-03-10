@@ -9,6 +9,7 @@ import reactor.test.StepVerifier;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
 public class OperatorsTest {
@@ -156,5 +157,44 @@ public class OperatorsTest {
                     log.info("Size {}", list.size());
                     return true;
                 }).verifyComplete();
+    }
+
+    @Test
+    public void switchIfEmptyOperator(){
+        var flux = emptyFlux()
+                .switchIfEmpty(Flux.just("Not empty anymore"))
+                .log();
+
+
+        StepVerifier.create(flux)
+                .expectSubscription()
+                .expectNext("Not empty anymore")
+                .expectComplete()
+                .verify();
+    }
+
+    @Test
+    public void deferOperator() throws Exception{
+        var just = Mono.just(System.currentTimeMillis());
+        //Defer é bom, toda vez que um subscribe entrar no Mono retorna valor atualizado
+        var defer = Mono.defer(() -> Mono.just(System.currentTimeMillis()));
+
+        //Apesar do uso de Delay, o resultado do tempo será o mesmo
+        // isso ocorre no momento da instancia, ele guarda o valor na memória
+        defer.subscribe(x -> log.info("time {}", x));
+        Thread.sleep(100);
+        defer.subscribe(x -> log.info("time {}", x));
+        Thread.sleep(100);
+        defer.subscribe(x -> log.info("time {}", x));
+        Thread.sleep(100);
+        defer.subscribe(x -> log.info("time {}", x));
+
+        AtomicLong atomicLong = new AtomicLong();
+        defer.subscribe(atomicLong::set);
+        Assertions.assertTrue(atomicLong.get() > 0L);
+    }
+
+    private Flux<Object> emptyFlux(){
+        return Flux.empty();
     }
 }
